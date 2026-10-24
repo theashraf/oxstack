@@ -1,0 +1,16 @@
+[package]
+name         = "oxstack-ir"
+description  = "Infrared remote-control protocol encoders (NEC) as mark/space timings"
+keywords     = ["embedded", "no-std", "infrared", "nec", "remote"]
+categories   = ["embedded", "no-std"]
+version.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+
+[features]
+defmt = ["dep:defmt"]
+
+[dependencies]
+defmt = { workspace = true, optional = true }

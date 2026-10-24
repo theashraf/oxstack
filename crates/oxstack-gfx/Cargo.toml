@@ -1,0 +1,20 @@
+[package]
+name         = "oxstack-gfx"
+description  = "Wire-format RGB565 framebuffer with dirty-row tracking for small SPI displays"
+keywords     = ["embedded", "no-std", "graphics", "framebuffer", "m5stack"]
+categories   = ["embedded", "no-std", "graphics"]
+version.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+
+[features]
+defmt = ["dep:defmt"]
+
+[dependencies]
+embedded-graphics-core = { workspace = true }
+defmt                  = { workspace = true, optional = true }
+
+[dev-dependencies]
+embedded-graphics = { workspace = true }

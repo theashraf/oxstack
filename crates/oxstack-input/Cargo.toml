@@ -1,0 +1,16 @@
+[package]
+name         = "oxstack-input"
+description  = "Keyboard model for M5Stack devices: physical keys, modifiers, layers, matrix maps"
+keywords     = ["embedded", "no-std", "keyboard", "cardputer", "m5stack"]
+categories   = ["embedded", "no-std"]
+version.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+
+[features]
+defmt = ["dep:defmt"]
+
+[dependencies]
+defmt = { workspace = true, optional = true }

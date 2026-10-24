@@ -1,0 +1,16 @@
+[package]
+name         = "oxstack-net"
+description  = "Transport-agnostic network protocol pieces: SNTP, calendar time"
+keywords     = ["embedded", "no-std", "sntp", "ntp", "time"]
+categories   = ["embedded", "no-std", "network-programming", "date-and-time"]
+version.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+
+[features]
+defmt = ["dep:defmt"]
+
+[dependencies]
+defmt = { workspace = true, optional = true }

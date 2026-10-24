@@ -1,0 +1,19 @@
+# Root config is host-neutral on purpose: no `build.target`, no `build-std`.
+# Host crates are tested with plain `cargo test`; firmware is built from
+# `examples/<board>/`, which carries its own target config.
+
+[alias]
+xtask = "run --quiet --package xtask --"
+# Type-check the target-only crates from the root without changing directory.
+check-target = "check --target xtensa-esp32s3-none-elf -Zbuild-std=core,alloc -p oxstack-cardputer -p oxstack-examples-cardputer"
+# Publish every library crate in dependency order. The board crate only builds
+# for the ESP32-S3, so verification runs on that target. Try `--dry-run` first.
+publish-all = "publish --target xtensa-esp32s3-none-elf -Zbuild-std=core,alloc -p oxstack-drivers -p oxstack-gfx -p oxstack-input -p oxstack-audio -p oxstack-net -p oxstack-ir -p oxstack-cardputer"
+
+[target.xtensa-esp32s3-none-elf]
+runner    = "espflash flash --monitor --chip esp32s3 --log-format defmt"
+rustflags = ["-C", "link-arg=-nostartfiles"]
+
+[env]
+# Read by esp-println when built with `log`; harmless otherwise.
+ESP_LOG = "info"

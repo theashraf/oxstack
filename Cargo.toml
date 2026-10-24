@@ -1,0 +1,85 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/oxstack-drivers",
+    "crates/oxstack-gfx",
+    "crates/oxstack-input",
+    "crates/oxstack-audio",
+    "crates/oxstack-net",
+    "crates/oxstack-ir",
+    "crates/oxstack-cardputer",
+    "examples/cardputer",
+    "xtask",
+]
+# Plain `cargo build` / `cargo test` at the root only touch crates that build
+# for the host. Target-only crates (anything depending on esp-hal) are built
+# from `examples/<board>/`, whose `.cargo/config.toml` selects the target.
+default-members = [
+    "crates/oxstack-drivers",
+    "crates/oxstack-gfx",
+    "crates/oxstack-input",
+    "crates/oxstack-audio",
+    "crates/oxstack-net",
+    "crates/oxstack-ir",
+    "xtask",
+]
+
+[workspace.package]
+version      = "0.1.0"
+edition      = "2024"
+rust-version = "1.95"
+license      = "MIT"
+repository   = "https://github.com/theashraf/oxstack"
+
+[workspace.dependencies]
+# Our own crates
+oxstack-drivers   = { path = "crates/oxstack-drivers", version = "0.1.0" }
+oxstack-gfx       = { path = "crates/oxstack-gfx", version = "0.1.0" }
+oxstack-input     = { path = "crates/oxstack-input", version = "0.1.0" }
+oxstack-audio     = { path = "crates/oxstack-audio", version = "0.1.0" }
+oxstack-net       = { path = "crates/oxstack-net", version = "0.1.0" }
+oxstack-ir        = { path = "crates/oxstack-ir", version = "0.1.0" }
+oxstack-cardputer = { path = "crates/oxstack-cardputer", version = "0.1.0" }
+
+# Portable traits — the only things the host-testable crates depend on
+embedded-hal           = "1.0.0"
+embedded-hal-async     = "1.0.0"
+embedded-graphics-core = "0.4.1"
+embedded-graphics      = "0.8.2"
+defmt                  = "1.0.1"
+libm                   = "0.2.16"
+
+# Espressif / Embassy (target side). esp-hal's `unstable` APIs (DMA, LEDC,
+# RMT, I2S, ADC) carry no semver guarantee, so we pin the exact version.
+esp-hal                = { version = "=1.2.2", features = ["esp32s3", "unstable"] }
+esp-rtos               = { version = "0.4.0", features = ["embassy", "esp32s3"] }
+esp-bootloader-esp-idf = { version = "0.6.0", features = ["esp32s3"] }
+esp-backtrace          = { version = "0.20.0", features = ["esp32s3", "panic-handler"] }
+esp-println            = { version = "0.18.0", default-features = false, features = ["esp32s3", "critical-section"] }
+embassy-executor       = "0.10.0"
+embassy-time           = "0.5.0"
+embassy-sync           = "0.8.0"
+embassy-embedded-hal   = { version = "0.6.0", default-features = false }
+embedded-hal-bus       = { version = "0.3.0", features = ["async"] }
+static_cell            = "2.1.1"
+embedded-sdmmc         = { version = "0.10.0", default-features = false }
+# Wi-Fi / BLE. Pre-release: pinned exactly.
+esp-radio              = { version = "=1.0.0-beta.1", features = ["esp32s3", "unstable"] }
+esp-alloc              = { version = "0.11.0", features = ["esp32s3"] }
+embassy-net            = { version = "0.9.1", features = ["dhcpv4", "dns", "udp", "tcp", "medium-ethernet", "proto-ipv4"] }
+embassy-futures        = "0.1.2"
+# BLE host. Must match the bt-hci major that esp-radio implements (0.9).
+trouble-host           = { version = "0.7.0", features = ["scan"] }
+bt-hci                 = "0.9.0"
+critical-section       = "1.2.0"
+
+[profile.dev]
+# Unoptimised Xtensa code is both huge and too slow to drive the display.
+opt-level = "s"
+
+[profile.release]
+codegen-units = 1
+lto           = "fat"
+opt-level     = "s"
+# Debug info lives in the ELF only; it never reaches the flash image.
+debug         = 2

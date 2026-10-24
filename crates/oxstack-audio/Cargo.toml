@@ -1,0 +1,17 @@
+[package]
+name         = "oxstack-audio"
+description  = "Allocation-free audio building blocks: level metering, tone generation"
+keywords     = ["embedded", "no-std", "audio", "dsp", "m5stack"]
+categories   = ["embedded", "no-std", "multimedia::audio"]
+version.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+
+[features]
+defmt = ["dep:defmt"]
+
+[dependencies]
+libm  = { workspace = true }
+defmt = { workspace = true, optional = true }

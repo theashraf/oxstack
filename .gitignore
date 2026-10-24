@@ -1,0 +1,9 @@
+/target
+**/*.rs.bk
+.DS_Store
+
+# Local Wi-Fi credentials (see examples/*/wifi.toml.example)
+wifi.toml
+
+# Local-only design notes and hardware reference (kept out of git)
+/docs/

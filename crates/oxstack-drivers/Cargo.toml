@@ -1,0 +1,25 @@
+[package]
+name         = "oxstack-drivers"
+description  = "Async, allocation-free drivers for the chips found on M5Stack devices"
+keywords     = ["embedded", "no-std", "async", "driver", "m5stack"]
+categories   = ["embedded", "no-std", "hardware-support"]
+version.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+license                = "MIT AND BSD-3-Clause"
+repository.workspace   = true
+
+[features]
+default = ["tca8418", "st7789", "bmi270", "es8311"]
+# One feature per chip, so firmware only compiles what it uses.
+tca8418 = []
+st7789  = []
+# Links Bosch's 8 KB feature-engine config into flash.
+bmi270  = []
+es8311  = []
+defmt   = ["dep:defmt"]
+
+[dependencies]
+embedded-hal       = { workspace = true }
+embedded-hal-async = { workspace = true }
+defmt              = { workspace = true, optional = true }

@@ -1,0 +1,106 @@
+[package]
+name    = "oxstack-examples-cardputer"
+publish = false
+version.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+
+[[bin]]
+name = "i2c_scan"
+path = "src/bin/i2c_scan.rs"
+test = false
+bench = false
+
+[[bin]]
+name = "display"
+path = "src/bin/display.rs"
+test = false
+bench = false
+
+[[bin]]
+name = "hwcheck"
+path = "src/bin/hwcheck.rs"
+test = false
+bench = false
+
+[[bin]]
+name = "io_test"
+path = "src/bin/io_test.rs"
+test = false
+bench = false
+
+[[bin]]
+name = "mic_meter"
+path = "src/bin/mic_meter.rs"
+test = false
+bench = false
+
+[[bin]]
+name = "sd_card"
+path = "src/bin/sd_card.rs"
+test = false
+bench = false
+
+[[bin]]
+name = "speaker_test"
+path = "src/bin/speaker_test.rs"
+test = false
+bench = false
+
+[[bin]]
+name = "typewriter"
+path = "src/bin/typewriter.rs"
+test = false
+bench = false
+
+[[bin]]
+name = "wifi_scan"
+path = "src/bin/wifi_scan.rs"
+required-features = ["wifi"]
+test = false
+bench = false
+
+[[bin]]
+name = "wifi_connect"
+path = "src/bin/wifi_connect.rs"
+required-features = ["wifi"]
+test = false
+bench = false
+
+[[bin]]
+name = "ble_peripheral"
+path = "src/bin/ble_peripheral.rs"
+required-features = ["ble"]
+test = false
+bench = false
+
+[[bin]]
+name = "ble_scan"
+path = "src/bin/ble_scan.rs"
+required-features = ["ble"]
+test = false
+bench = false
+
+[features]
+wifi = ["oxstack-cardputer/wifi"]
+ble  = ["oxstack-cardputer/ble", "dep:trouble-host"]
+
+[dependencies]
+oxstack-cardputer = { workspace = true, features = ["defmt"] }
+
+esp-hal                = { workspace = true, features = ["defmt"] }
+esp-rtos               = { workspace = true, features = ["defmt"] }
+esp-bootloader-esp-idf = { workspace = true, features = ["defmt"] }
+esp-backtrace          = { workspace = true, features = ["defmt"] }
+# USB-Serial-JTAG only: UART0's default pins are board signals here.
+esp-println            = { workspace = true, features = ["defmt-espflash", "jtag-serial"] }
+embassy-executor       = { workspace = true, features = ["defmt"] }
+embassy-time           = { workspace = true, features = ["defmt"] }
+embedded-hal-async     = { workspace = true }
+embedded-graphics      = { workspace = true }
+embassy-futures        = { workspace = true }
+# trouble's #[gatt_service] macro expands to code that uses static_cell.
+static_cell            = { workspace = true }
+trouble-host           = { workspace = true, optional = true, features = ["defmt"] }
+defmt                  = { workspace = true }

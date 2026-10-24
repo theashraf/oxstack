@@ -1,0 +1,15 @@
+# Copy to `wifi.toml` (git-ignored) for the networking examples, e.g.
+# `cargo run --release --bin wifi_connect --features wifi`.
+#
+# The values are compiled into the firmware, so anyone with the device can
+# read them from its flash. Use a network you're comfortable with that.
+# Values are taken verbatim between the first and last quote. Comments
+# must be on their own lines.
+
+ssid = "my-network"
+# Leave the password empty ("") for an open network.
+password = "my-passphrase"
+
+# Optional: local time zone as minutes east of UTC (e.g. 420 for UTC+7,
+# -300 for UTC-5). Defaults to 0 (UTC).
+utc_offset_minutes = "0"
