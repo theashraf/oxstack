@@ -42,6 +42,7 @@ example.
 | [`oxstack-cardputer`](crates/oxstack-cardputer) | Board support: pins, drivers, Wi-Fi/BLE helpers | ESP32-S3 only |
 | [`oxstack-drivers`](crates/oxstack-drivers) | ST7789, TCA8418, ES8311, BMI270 over `embedded-hal` | host + target |
 | [`oxstack-gfx`](crates/oxstack-gfx) | Dirty-row RGB565 framebuffer, `TextBuf` | host + target |
+| [`oxstack-3d`](crates/oxstack-3d) | Software 3D: `f32` math, camera, clipping, culling, flat shading, z-buffer | host + target |
 | [`oxstack-input`](crates/oxstack-input) | Key matrix, modifiers, `Action`s | host + target |
 | [`oxstack-audio`](crates/oxstack-audio) | Tone generator, level meter | host + target |
 | [`oxstack-net`](crates/oxstack-net) | SNTP, calendar time | host + target |
@@ -75,6 +76,7 @@ cargo test                         # portable crates, on your machine
 cd examples/cardputer
 cargo run --release --bin i2c_scan # flash + defmt log monitor
 cargo run --release --bin display  # alignment test + flush benchmark
+cargo run --release --bin scene3d  # z-buffered 3D scene with fps readout
 cargo run --release --bin menu     # five apps, re-run without rebooting
 cargo run --release --bin imu_axes # measure how the IMU is mounted
 ```
@@ -83,7 +85,7 @@ From the repo root:
 
 | Command              | What it does                                              |
 | -------------------- | --------------------------------------------------------- |
-| `cargo test`         | Host tests for drivers, graphics, input, audio, net, ir   |
+| `cargo test`         | Host tests for drivers, graphics, 3D, input, audio, net, ir |
 | `cargo check-target` | Type-check the ESP32-S3 crates                            |
 | `cargo xtask size`   | Build all firmware; report flash image / `.data` / `.bss` |
 

@@ -67,6 +67,12 @@ test = false
 bench = false
 
 [[bin]]
+name = "scene3d"
+path = "src/bin/scene3d.rs"
+test = false
+bench = false
+
+[[bin]]
 name = "wifi_scan"
 path = "src/bin/wifi_scan.rs"
 required-features = ["wifi"]
@@ -100,6 +106,7 @@ ble  = ["oxstack-cardputer/ble", "dep:trouble-host"]
 
 [dependencies]
 oxstack-cardputer = { workspace = true, features = ["defmt"] }
+oxstack-3d        = { workspace = true, features = ["defmt"] }
 
 esp-hal                = { workspace = true, features = ["defmt"] }
 esp-rtos               = { workspace = true, features = ["defmt"] }

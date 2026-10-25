@@ -8,7 +8,7 @@ xtask = "run --quiet --package xtask --"
 check-target = "check --target xtensa-esp32s3-none-elf -Zbuild-std=core,alloc -p oxstack-cardputer -p oxstack-examples-cardputer"
 # Publish every library crate in dependency order. The board crate only builds
 # for the ESP32-S3, so verification runs on that target. Try `--dry-run` first.
-publish-all = "publish --target xtensa-esp32s3-none-elf -Zbuild-std=core,alloc -p oxstack-drivers -p oxstack-gfx -p oxstack-input -p oxstack-audio -p oxstack-net -p oxstack-ir -p oxstack-cardputer"
+publish-all = "publish --target xtensa-esp32s3-none-elf -Zbuild-std=core,alloc -p oxstack-drivers -p oxstack-gfx -p oxstack-3d -p oxstack-input -p oxstack-audio -p oxstack-net -p oxstack-ir -p oxstack-cardputer"
 
 [target.xtensa-esp32s3-none-elf]
 runner    = "espflash flash --monitor --chip esp32s3 --log-format defmt"

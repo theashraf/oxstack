@@ -1,4 +1,5 @@
 use core::convert::Infallible;
+use core::ops::Range;
 
 use embedded_graphics_core::Pixel;
 use embedded_graphics_core::draw_target::DrawTarget;
@@ -98,6 +99,37 @@ impl<const W: usize, const H: usize> Framebuffer<W, H> {
         })
     }
 
+    /// Mutable access to rows `rows` in wire format, for renderers that
+    /// write pixels one by one (a 3D rasteriser testing depth per pixel
+    /// cannot use `fill_solid`). Those rows are marked dirty, so a flush
+    /// cannot miss them. Store colours converted with [`wire_color`].
+    ///
+    /// # Panics
+    ///
+    /// If `rows` is out of bounds or decreasing, like slice indexing.
+    ///
+    /// ```
+    /// use oxstack_gfx::{Framebuffer, Rgb565, wire_color};
+    /// use embedded_graphics::prelude::*;
+    ///
+    /// let mut fb = Framebuffer::<8, 6>::new();
+    /// let red = wire_color(Rgb565::RED);
+    /// for row in fb.wire_rows_mut(2..4) {
+    ///     row[1..3].fill(red);
+    /// }
+    /// assert_eq!(fb.pixel(1, 3), Some(Rgb565::RED));
+    /// let dirty = fb.take_dirty().unwrap();
+    /// assert_eq!((dirty.y, dirty.rows), (2, 2));
+    /// ```
+    pub fn wire_rows_mut(&mut self, rows: Range<usize>) -> &mut [[u16; W]] {
+        // Bounds-check (and panic) before marking anything.
+        let _ = &self.rows[rows.clone()];
+        if !rows.is_empty() {
+            self.mark_rows(rows.start, rows.end);
+        }
+        &mut self.rows[rows]
+    }
+
     /// The whole buffer in wire format.
     pub fn as_bytes(&self) -> &[u8] {
         let px = self.rows.as_flattened();
@@ -121,8 +153,15 @@ impl<const W: usize, const H: usize> Framebuffer<W, H> {
 
     #[inline]
     fn wire(color: Rgb565) -> u16 {
-        color.into_storage().to_be()
+        wire_color(color)
     }
+}
+
+/// `color` in the framebuffer's wire format (big-endian RGB565), the value
+/// [`Framebuffer::wire_rows_mut`] rows hold.
+#[inline]
+pub fn wire_color(color: Rgb565) -> u16 {
+    color.into_storage().to_be()
 }
 
 impl<const W: usize, const H: usize> Default for Framebuffer<W, H> {
@@ -223,6 +262,19 @@ mod tests {
         Pixel(Point::new(0, 4), Rgb565::RED).draw(&mut fb).unwrap();
         let d = fb.take_dirty().unwrap();
         assert_eq!((d.y, d.rows), (1, 4), "separate draws merge");
+    }
+
+    #[test]
+    fn wire_rows_mut_marks_rows_dirty() {
+        let mut fb = Fb::new();
+        assert!(fb.wire_rows_mut(3..3).is_empty());
+        assert!(fb.take_dirty().is_none(), "empty range marks nothing");
+
+        fb.wire_rows_mut(4..5)[0][7] = wire_color(Rgb565::BLUE);
+        fb.wire_rows_mut(1..2);
+        assert_eq!(fb.pixel(7, 4), Some(Rgb565::BLUE));
+        let d = fb.take_dirty().unwrap();
+        assert_eq!((d.y, d.rows), (1, 4), "ranges merge");
     }
 
     #[test]

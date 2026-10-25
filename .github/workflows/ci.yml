@@ -49,7 +49,7 @@ jobs:
         # docs.rs cannot build for Xtensa, so the docs are published from here.
         run: |
           cargo doc --no-deps --target xtensa-esp32s3-none-elf -Zbuild-std=core,alloc \
-            -p oxstack-cardputer -p oxstack-drivers -p oxstack-gfx -p oxstack-input \
+            -p oxstack-cardputer -p oxstack-drivers -p oxstack-gfx -p oxstack-3d -p oxstack-input \
             -p oxstack-audio -p oxstack-net -p oxstack-ir \
             --features oxstack-cardputer/wifi,oxstack-cardputer/ble,oxstack-cardputer/defmt
           DOC=target/xtensa-esp32s3-none-elf/doc

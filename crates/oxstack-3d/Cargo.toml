@@ -1,0 +1,22 @@
+[package]
+name         = "oxstack-3d"
+description  = "Allocation-free software 3D: f32 math, camera, clipping, culling, flat shading and a z-buffered rasteriser for small displays"
+keywords     = ["embedded", "no-std", "3d", "rasterizer", "graphics"]
+categories   = ["embedded", "no-std", "graphics", "rendering"]
+version.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+
+[features]
+defmt = ["dep:defmt", "oxstack-gfx/defmt", "embedded-graphics-core/defmt"]
+
+[dependencies]
+oxstack-gfx            = { workspace = true }
+embedded-graphics-core = { workspace = true }
+libm                   = { workspace = true }
+defmt                  = { workspace = true, optional = true }
+
+[dev-dependencies]
+embedded-graphics = { workspace = true }

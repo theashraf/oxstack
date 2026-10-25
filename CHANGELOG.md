@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.2.1 — 2026-10-25
+
+### New crate: `oxstack-3d`
+
+Allocation-free software 3D, host-tested like the other portable crates:
+
+- **Math**: `Vec2`/`Vec3`/`Vec4`, column-major `Mat4` (perspective and
+  orthographic projection with depth `0..=1`, `look_at`, affine inverse),
+  and `Quat` (axis-angle, yaw/pitch/roll, `looking_to`, slerp/nlerp,
+  `from_scaled_axis` for gyro integration). `recip`, `rsqrt` and `sin_cos`
+  use only multiplies and adds. On the ESP32-S3, `f32` division is a ROM
+  software call, and `libm`'s trig computes in software `f64`.
+- **`Camera`**: position + quaternion, `look_at`, `translate_local`,
+  `Projection::{Perspective, Orthographic}`.
+- **`Renderer`**: bounding-sphere frustum culling per mesh; back-face
+  culling in clip space (`Cull::{Back, Front, None}`); near/far clipping
+  with a guard band at the screen sides; flat Lambert shading
+  (`Lighting`); distance `Fog`; depth-tested 3D lines; `project` for
+  labels; and `Stats`.
+- **Rasteriser**: integer edge functions on vertices snapped to 1/16 pixel,
+  with exact per-row spans and a tie-break rule that tiles shared edges
+  with no gaps and no double writes. Depth goes into a 16-bit
+  `DepthBuffer` whose empty value is all-zero, so it lives in `.bss` with
+  no flash cost.
+- `mesh::{CUBE, OCTAHEDRON, ICOSAHEDRON}` and `const fn Mesh::new`, which
+  checks indices at compile time.
+- `scene3d` example for the Cardputer.
+
+### `oxstack-gfx`
+
+- `Framebuffer::wire_rows_mut(rows)` gives mutable access to rows in wire
+  format and marks them dirty. `wire_color` converts a colour to that
+  format.
+
 ## 0.2.0 — 2026-10-25
 
 Breaking release of `oxstack-cardputer`, driven by feedback from building a

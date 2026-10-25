@@ -730,6 +730,7 @@ checksum = "95743bef3ff70fcba3930246c4e6872882bbea0dcc6da2ca860112e0cd4bd09f"
 dependencies = [
  "az",
  "byteorder",
+ "defmt 0.3.101",
 ]
 
 [[package]]
@@ -1869,8 +1870,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
+name = "oxstack-3d"
+version = "0.2.1"
+dependencies = [
+ "defmt 1.2.0",
+ "embedded-graphics",
+ "embedded-graphics-core",
+ "libm",
+ "oxstack-gfx",
+]
+
+[[package]]
 name = "oxstack-audio"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "defmt 1.2.0",
  "libm",
@@ -1878,7 +1890,7 @@ dependencies = [
 
 [[package]]
 name = "oxstack-cardputer"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "bt-hci",
  "defmt 1.2.0",
@@ -1909,7 +1921,7 @@ dependencies = [
 
 [[package]]
 name = "oxstack-drivers"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "defmt 1.2.0",
  "embedded-hal 1.0.0",
@@ -1918,7 +1930,7 @@ dependencies = [
 
 [[package]]
 name = "oxstack-examples-cardputer"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "defmt 1.2.0",
  "embassy-executor",
@@ -1931,6 +1943,7 @@ dependencies = [
  "esp-hal",
  "esp-println",
  "esp-rtos",
+ "oxstack-3d",
  "oxstack-cardputer",
  "static_cell",
  "trouble-host",
@@ -1938,7 +1951,7 @@ dependencies = [
 
 [[package]]
 name = "oxstack-gfx"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "defmt 1.2.0",
  "embedded-graphics",
@@ -1947,21 +1960,21 @@ dependencies = [
 
 [[package]]
 name = "oxstack-input"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "defmt 1.2.0",
 ]
 
 [[package]]
 name = "oxstack-ir"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "defmt 1.2.0",
 ]
 
 [[package]]
 name = "oxstack-net"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "defmt 1.2.0",
 ]
@@ -2718,7 +2731,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "0.2.0"
+version = "0.2.1"
 
 [[package]]
 name = "xtensa-lx"

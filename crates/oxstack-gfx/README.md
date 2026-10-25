@@ -3,7 +3,9 @@
 A `no_std` RGB565 framebuffer for SPI displays. Pixels are stored already in
 the panel's big-endian wire format, and the buffer tracks which rows changed,
 so a flush is one contiguous slice that DMA can send with no conversion or
-copy. It implements `embedded-graphics`' `DrawTarget`.
+copy. It implements `embedded-graphics`' `DrawTarget`. Renderers that write
+pixels one at a time (such as `oxstack-3d`) use `wire_rows_mut`, which marks
+the rows it hands out dirty.
 
 ```rust
 use embedded_graphics::prelude::*;
