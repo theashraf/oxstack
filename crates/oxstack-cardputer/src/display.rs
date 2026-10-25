@@ -7,6 +7,7 @@
 use embassy_time::Delay;
 use embedded_hal_bus::spi::{DeviceError, ExclusiveDevice, NoDelay};
 use esp_hal::Async;
+use esp_hal::dma::{BurstConfig, DmaRxBuf, DmaTxBuf};
 use esp_hal::gpio::{Level, Output, OutputConfig};
 use esp_hal::peripherals::{DMA_CH0, GPIO33, GPIO34, GPIO35, GPIO36, GPIO37, SPI3};
 use esp_hal::spi::Mode;
@@ -44,7 +45,8 @@ pub const ROTATION: Rotation = Rotation::Deg90;
 pub const SPI_FREQUENCY: Rate = Rate::from_mhz(40);
 
 /// The board's framebuffer, placed in `.bss` (64.8 KB RAM, zero flash).
-/// Returns `None` after the first call.
+/// Returns `None` after the first call: take it once at start-up and share
+/// the `&'static mut` between apps.
 pub fn try_framebuffer() -> Option<&'static mut Frame> {
     static FRAME: ConstStaticCell<Frame> = ConstStaticCell::new(Frame::new());
     FRAME.try_take()
@@ -55,7 +57,7 @@ pub fn framebuffer() -> &'static mut Frame {
     try_framebuffer().expect("framebuffer already taken")
 }
 
-type Bus = ExclusiveDevice<SpiDma<'static, Async>, Output<'static>, NoDelay>;
+type Bus<'d> = ExclusiveDevice<SpiDma<'d, Async>, Output<'d>, NoDelay>;
 
 /// Display errors.
 pub type Error = st7789::Error<
@@ -65,42 +67,63 @@ pub type Error = st7789::Error<
 
 /// SPI3, DMA channel 0, and the LCD's control pins.
 #[allow(missing_docs)]
-pub struct DisplayResources {
-    pub spi: SPI3<'static>,
-    pub dma: DMA_CH0<'static>,
-    pub sck: GPIO36<'static>,
-    pub mosi: GPIO35<'static>,
-    pub cs: GPIO37<'static>,
-    pub dc: GPIO34<'static>,
-    pub rst: GPIO33<'static>,
+pub struct DisplayResources<'d> {
+    pub spi: SPI3<'d>,
+    pub dma: DMA_CH0<'d>,
+    pub sck: GPIO36<'d>,
+    pub mosi: GPIO35<'d>,
+    pub cs: GPIO37<'d>,
+    pub dc: GPIO34<'d>,
+    pub rst: GPIO33<'d>,
+}
+reborrow_group!(DisplayResources {
+    spi,
+    dma,
+    sck,
+    mosi,
+    cs,
+    dc,
+    rst
+});
+
+/// Bounce buffers for data DMA can't read in place (constants in flash).
+/// The framebuffer is in SRAM and goes direct. One static pair, reused by
+/// every `init`; the `&mut` borrow of the resources serialises them.
+fn bounce_buffers() -> (DmaRxBuf, DmaTxBuf) {
+    const CHUNK: usize = BurstConfig::DEFAULT.max_compatible_chunk_size();
+    let (rx, rx_desc) = static_dma_memory!(32, CHUNK);
+    let (tx, tx_desc) = static_dma_memory!(256, CHUNK);
+    (
+        DmaRxBuf::new(rx_desc, rx).expect("valid DMA buffer"),
+        DmaTxBuf::new(tx_desc, tx).expect("valid DMA buffer"),
+    )
 }
 
-impl DisplayResources {
+impl<'d> DisplayResources<'d> {
     /// Resets and initialises the panel. Frame memory holds garbage until the
     /// first flush, and the backlight is a separate resource.
-    pub async fn init(self) -> Result<Display, Error> {
-        // Bounce buffers, used only for data DMA can't read in place (e.g.
-        // constants in flash). The framebuffer is in SRAM and goes direct.
-        let rx = esp_hal::dma_rx_buffer!(32).expect("valid DMA buffer");
-        let tx = esp_hal::dma_tx_buffer!(256).expect("valid DMA buffer");
-
+    ///
+    /// The returned [`Display`] borrows the resources; drop it and `init`
+    /// can be called again.
+    pub async fn init(&mut self) -> Result<Display<'_>, Error> {
+        let (rx, tx) = bounce_buffers();
         let spi = Spi::new(
-            self.spi,
+            self.spi.reborrow(),
             Config::default()
                 .with_frequency(SPI_FREQUENCY)
                 .with_mode(Mode::_0),
         )
         .expect("40 MHz mode 0 is a valid SPI configuration")
-        .with_sck(self.sck)
-        .with_mosi(self.mosi)
-        .with_dma(self.dma)
+        .with_sck(self.sck.reborrow())
+        .with_mosi(self.mosi.reborrow())
+        .with_dma(self.dma.reborrow())
         .with_buffers(rx, tx)
         .into_async();
 
         let out = OutputConfig::default();
-        let cs = Output::new(self.cs, Level::High, out);
-        let dc = Output::new(self.dc, Level::Low, out);
-        let mut rst = Output::new(self.rst, Level::High, out);
+        let cs = Output::new(self.cs.reborrow(), Level::High, out);
+        let dc = Output::new(self.dc.reborrow(), Level::Low, out);
+        let mut rst = Output::new(self.rst.reborrow(), Level::High, out);
 
         let mut delay = Delay;
         let Ok(()) = st7789::hard_reset(&mut rst, &mut delay).await;
@@ -113,14 +136,19 @@ impl DisplayResources {
 }
 
 /// The LCD driver.
-pub struct Display {
-    lcd: St7789<Bus, Output<'static>>,
+pub struct Display<'d> {
+    lcd: St7789<Bus<'d>, Output<'d>>,
     /// Held so the reset line stays high.
-    _rst: Output<'static>,
+    _rst: Output<'d>,
 }
 
-impl Display {
+impl<'d> Display<'d> {
     /// Sends the framebuffer's changed rows; returns whether anything was sent.
+    ///
+    /// Cancel-safe in the sense that the panel is left consistent: a
+    /// cancelled flush may leave the dirty rows partly sent, and they are
+    /// no longer marked dirty. Call [`Frame::mark_all_dirty`] afterwards if
+    /// that matters.
     pub async fn flush(&mut self, frame: &mut Frame) -> Result<bool, Error> {
         let Some(dirty) = frame.take_dirty() else {
             return Ok(false);
@@ -140,7 +168,7 @@ impl Display {
     }
 
     /// The underlying controller driver, for raw commands and windows.
-    pub fn controller(&mut self) -> &mut St7789<Bus, Output<'static>> {
+    pub fn controller(&mut self) -> &mut St7789<Bus<'d>, Output<'d>> {
         &mut self.lcd
     }
 }

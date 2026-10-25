@@ -31,6 +31,18 @@ test = false
 bench = false
 
 [[bin]]
+name = "imu_axes"
+path = "src/bin/imu_axes.rs"
+test = false
+bench = false
+
+[[bin]]
+name = "menu"
+path = "src/bin/menu.rs"
+test = false
+bench = false
+
+[[bin]]
 name = "mic_meter"
 path = "src/bin/mic_meter.rs"
 test = false

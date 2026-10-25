@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  host:
+    name: Host tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: esp-rs/xtensa-toolchain@v1.5
+        with:
+          default: true
+          buildtargets: esp32s3
+          ldproxy: false
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: cargo test --workspace --exclude oxstack-cardputer --exclude oxstack-examples-cardputer
+
+  target:
+    name: ESP32-S3 build and docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: esp-rs/xtensa-toolchain@v1.5
+        with:
+          default: true
+          buildtargets: esp32s3
+          ldproxy: false
+      - uses: Swatinem/rust-cache@v2
+      - name: Type-check board crate and examples
+        run: |
+          cargo check-target
+          cargo check --target xtensa-esp32s3-none-elf -Zbuild-std=core,alloc \
+            -p oxstack-cardputer -p oxstack-examples-cardputer --features oxstack-cardputer/wifi,oxstack-cardputer/ble,oxstack-examples-cardputer/wifi,oxstack-examples-cardputer/ble
+      - name: Build API docs for the target
+        # docs.rs cannot build for Xtensa, so the docs are published from here.
+        run: |
+          cargo doc --no-deps --target xtensa-esp32s3-none-elf -Zbuild-std=core,alloc \
+            -p oxstack-cardputer -p oxstack-drivers -p oxstack-gfx -p oxstack-input \
+            -p oxstack-audio -p oxstack-net -p oxstack-ir \
+            --features oxstack-cardputer/wifi,oxstack-cardputer/ble,oxstack-cardputer/defmt
+          DOC=target/xtensa-esp32s3-none-elf/doc
+          echo '<meta http-equiv="refresh" content="0; url=oxstack_cardputer/">' > "$DOC/index.html"
+          touch "$DOC/.nojekyll"
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          path: target/xtensa-esp32s3-none-elf/doc
+
+  deploy-docs:
+    name: Publish docs to GitHub Pages
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: target
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,4 +1,5 @@
-//! The WS2812-class RGB LED on GPIO21, driven by an RMT channel.
+//! The WS2812-class RGB LED on GPIO21, driven by an RMT channel. Get it
+//! from [`crate::rmt::RmtResources::init`].
 //!
 //! **Powered through the LCD backlight pin:** it only works while the
 //! backlight is fully on. See [`crate::backlight`].
@@ -19,16 +20,16 @@ const T1H: u16 = 64;
 const T1L: u16 = 36;
 
 /// The RGB LED.
-pub struct RgbLed {
-    ch: Channel<'static, Async, Tx>,
+pub struct RgbLed<'d> {
+    ch: Channel<'d, Async, Tx>,
 }
 
-impl RgbLed {
+impl<'d> RgbLed<'d> {
     /// Configures an RMT TX channel for the LED. The `Rmt` the channel
     /// comes from must run at [`RMT_MHZ`].
     pub fn new(
-        channel: impl TxChannelCreator<'static, Async>,
-        pin: GPIO21<'static>,
+        channel: impl TxChannelCreator<'d, Async>,
+        pin: GPIO21<'d>,
     ) -> Result<Self, ConfigError> {
         let config = TxChannelConfig::default()
             .with_clk_divider(1)

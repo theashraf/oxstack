@@ -18,16 +18,21 @@ const MATRIX: Matrix = Matrix::new(cardputer::ADV_MATRIX_ROWS, cardputer::ADV_MA
 
 /// The scanner's interrupt line.
 #[allow(missing_docs)]
-pub struct KeyboardResources {
-    pub int: GPIO11<'static>,
+pub struct KeyboardResources<'d> {
+    pub int: GPIO11<'d>,
 }
+reborrow_group!(KeyboardResources { int });
 
-impl KeyboardResources {
-    /// Configures the scanner and returns the keyboard.
-    pub async fn init(self, bus: &'static SysI2cBus) -> Result<Keyboard, Error> {
+impl<'d> KeyboardResources<'d> {
+    /// Configures the scanner and returns the keyboard. The scanner's event
+    /// queue is cleared, so keys pressed before `init` are not reported.
+    pub async fn init(&mut self, bus: &'static SysI2cBus) -> Result<Keyboard<'_>, Error> {
         // The line has a 3.3 kΩ pull-up on the board; the internal one is
         // a harmless backup if the scanner is unpowered.
-        let int = Input::new(self.int, InputConfig::default().with_pull(Pull::Up));
+        let int = Input::new(
+            self.int.reborrow(),
+            InputConfig::default().with_pull(Pull::Up),
+        );
         let mut scanner = Tca8418::new(device(bus), tca8418::DEFAULT_ADDRESS);
         scanner.configure(MATRIX).await?;
         Ok(Keyboard {
@@ -42,9 +47,9 @@ impl KeyboardResources {
 }
 
 /// The keyboard driver.
-pub struct Keyboard {
+pub struct Keyboard<'d> {
     scanner: Tca8418<SysI2cDevice>,
-    int: Input<'static>,
+    int: Input<'d>,
     state: KeyboardState,
     /// Raw events drained from the chip but not yet returned.
     fifo: [u8; FIFO_DEPTH],
@@ -52,7 +57,7 @@ pub struct Keyboard {
     len: u8,
 }
 
-impl Keyboard {
+impl Keyboard<'_> {
     /// Waits for the next key press or release.
     ///
     /// Cancelling while it waits for the interrupt line (the usual case,

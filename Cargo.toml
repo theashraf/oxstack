@@ -11,6 +11,8 @@ members = [
     "examples/cardputer",
     "xtask",
 ]
+# `templates/` holds cargo-generate templates, not members.
+exclude = ["templates/cardputer-app"]
 # Plain `cargo build` / `cargo test` at the root only touch crates that build
 # for the host. Target-only crates (anything depending on esp-hal) are built
 # from `examples/<board>/`, whose `.cargo/config.toml` selects the target.
@@ -25,7 +27,7 @@ default-members = [
 ]
 
 [workspace.package]
-version      = "0.1.0"
+version      = "0.2.0"
 edition      = "2024"
 rust-version = "1.95"
 license      = "MIT"
@@ -33,13 +35,13 @@ repository   = "https://github.com/theashraf/oxstack"
 
 [workspace.dependencies]
 # Our own crates
-oxstack-drivers   = { path = "crates/oxstack-drivers", version = "0.1.0" }
-oxstack-gfx       = { path = "crates/oxstack-gfx", version = "0.1.0" }
-oxstack-input     = { path = "crates/oxstack-input", version = "0.1.0" }
-oxstack-audio     = { path = "crates/oxstack-audio", version = "0.1.0" }
-oxstack-net       = { path = "crates/oxstack-net", version = "0.1.0" }
-oxstack-ir        = { path = "crates/oxstack-ir", version = "0.1.0" }
-oxstack-cardputer = { path = "crates/oxstack-cardputer", version = "0.1.0" }
+oxstack-drivers   = { path = "crates/oxstack-drivers", version = "0.2.0" }
+oxstack-gfx       = { path = "crates/oxstack-gfx", version = "0.2.0" }
+oxstack-input     = { path = "crates/oxstack-input", version = "0.2.0" }
+oxstack-audio     = { path = "crates/oxstack-audio", version = "0.2.0" }
+oxstack-net       = { path = "crates/oxstack-net", version = "0.2.0" }
+oxstack-ir        = { path = "crates/oxstack-ir", version = "0.2.0" }
+oxstack-cardputer = { path = "crates/oxstack-cardputer", version = "0.2.0" }
 
 # Portable traits — the only things the host-testable crates depend on
 embedded-hal           = "1.0.0"

@@ -8,8 +8,6 @@
 #![no_std]
 #![no_main]
 
-use core::fmt::Write as _;
-
 use defmt::{info, warn};
 use embassy_executor::Spawner;
 use embassy_futures::select::{Either3, select3};
@@ -21,12 +19,10 @@ use embedded_graphics::prelude::*;
 use embedded_graphics::text::{Baseline, Text};
 use esp_backtrace as _;
 use esp_hal::gpio::{Input, InputConfig, Pull};
-use esp_hal::rmt::Rmt;
-use esp_hal::time::Rate;
 use esp_println as _;
+use oxstack_cardputer::gfx::TextBuf;
 use oxstack_cardputer::input::Action;
-use oxstack_cardputer::ir::{IrTx, protocols::nec};
-use oxstack_cardputer::led::{RMT_MHZ, RgbLed};
+use oxstack_cardputer::ir::protocols::nec;
 use oxstack_cardputer::{self as bsp, display};
 
 esp_bootloader_esp_idf::esp_app_desc!();
@@ -39,41 +35,22 @@ const COLOURS: [(&str, u8, u8, u8); 5] = [
     ("off", 0, 0, 0),
 ];
 
-struct Line {
-    buf: [u8; 38],
-    len: usize,
-}
-
-impl core::fmt::Write for Line {
-    fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        let n = s.len().min(self.buf.len() - self.len);
-        self.buf[self.len..self.len + n].copy_from_slice(&s.as_bytes()[..n]);
-        self.len += n;
-        Ok(())
-    }
-}
-
 fn row(fb: &mut display::Frame, y: i32, args: core::fmt::Arguments<'_>, color: Rgb565) {
-    let mut l = Line {
-        buf: [b' '; 38],
-        len: 0,
-    };
-    let _ = l.write_fmt(args);
+    let mut l = TextBuf::<38>::format(args);
+    l.pad(38); // always draw the full width so old text is overwritten
     let style = MonoTextStyleBuilder::new()
         .font(&FONT_6X10)
         .text_color(color)
         .background_color(Rgb565::BLACK)
         .build();
-    // Always draw the full padded width so old text is overwritten.
-    let text = core::str::from_utf8(&l.buf).unwrap_or("");
-    Text::with_baseline(text, Point::new(2, y), style, Baseline::Top)
+    Text::with_baseline(l.as_str(), Point::new(2, y), style, Baseline::Top)
         .draw(fb)
         .unwrap();
 }
 
 #[esp_rtos::main]
 async fn main(_spawner: Spawner) -> ! {
-    let board = bsp::init(bsp::default_config());
+    let mut board = bsp::init(bsp::default_config());
     // Full backlight also powers the RGB LED.
     let _backlight = board.backlight.init();
     let bus = board.sys_i2c.into_bus();
@@ -101,12 +78,12 @@ async fn main(_spawner: Spawner) -> ! {
         Rgb565::WHITE,
     );
 
-    let rmt = Rmt::new(board.system.rmt, Rate::from_mhz(RMT_MHZ))
-        .unwrap()
-        .into_async();
-    let mut led = RgbLed::new(rmt.channel0, board.rgb_led).unwrap();
-    let mut ir = IrTx::new(rmt.channel1, board.ir_tx).unwrap();
-    let mut button = Input::new(board.button, InputConfig::default().with_pull(Pull::Up));
+    // One RMT init gives both pulse-driven LEDs.
+    let (mut led, mut ir) = board.rmt.init().unwrap();
+    let mut button = Input::new(
+        board.button.reborrow(),
+        InputConfig::default().with_pull(Pull::Up),
+    );
 
     let (mut colour, mut presses, mut bursts) = (0usize, 0u32, 0u32);
     let mut ticker = Ticker::every(Duration::from_secs(1));

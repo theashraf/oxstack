@@ -21,6 +21,7 @@ use esp_backtrace as _;
 use esp_println as _;
 use oxstack_cardputer::audio::{Error, Player, SampleRate, Volume};
 use oxstack_cardputer::dsp::tone::Sine;
+use oxstack_cardputer::gfx::text;
 use oxstack_cardputer::input::Action;
 use oxstack_cardputer::{self as bsp, display};
 
@@ -45,51 +46,35 @@ fn label(fb: &mut display::Frame, y: i32, s: &str, color: Rgb565) {
         .unwrap();
 }
 
-/// Fixed-capacity text line.
-struct Line {
-    buf: [u8; 38],
-    len: usize,
-}
-
-impl core::fmt::Write for Line {
-    fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        let n = s.len().min(self.buf.len() - self.len);
-        self.buf[self.len..self.len + n].copy_from_slice(&s.as_bytes()[..n]);
-        self.len += n;
-        Ok(())
-    }
-}
-
 fn status(fb: &mut display::Frame, playing: bool, step: usize) {
-    use core::fmt::Write as _;
-    let mut l = Line {
-        buf: [b' '; 38],
-        len: 0,
-    };
     let state = if playing { "PLAYING 440 Hz" } else { "stopped" };
-    let _ = write!(l, "{:<16}vol {:>3} dB", state, STEPS_DB[step]);
+    let mut l = text!(38, "{:<16}vol {:>3} dB", state, STEPS_DB[step]);
     let color = if playing {
         Rgb565::GREEN
     } else {
         Rgb565::WHITE
     };
     // Pad to the full width so a shorter line overwrites a longer one.
-    label(fb, 70, core::str::from_utf8(&l.buf).unwrap_or(""), color);
+    label(fb, 70, l.pad(38).as_str(), color);
 }
 
-async fn play_block(player: &mut Player, osc: &mut Sine) {
-    let mut block = [0i16; BLOCK];
-    osc.fill(&mut block, 2);
-    match player.write(&block).await {
-        Ok(()) => {}
-        Err(Error::Underrun) => warn!("underrun"),
-        Err(e) => defmt::panic!("audio error: {}", e),
+/// Fills one block and queues it. `write_some` is cancel-safe, so this can
+/// sit in a `select` with the keyboard without losing or duplicating audio.
+async fn play_block(player: &mut Player<'_>, osc: &mut Sine, block: &mut [i16; BLOCK]) {
+    osc.fill(block, 2);
+    let mut rest = &block[..];
+    while !rest.is_empty() {
+        match player.write_some(rest).await {
+            Ok(n) => rest = &rest[n..],
+            Err(Error::Underrun) => warn!("underrun"),
+            Err(e) => defmt::panic!("audio error: {}", e),
+        }
     }
 }
 
 #[esp_rtos::main]
 async fn main(_spawner: Spawner) -> ! {
-    let board = bsp::init(bsp::default_config());
+    let mut board = bsp::init(bsp::default_config());
     let _backlight = board.backlight.init();
     let bus = board.sys_i2c.into_bus();
     let mut lcd = board.display.init().await.unwrap();
@@ -111,7 +96,7 @@ async fn main(_spawner: Spawner) -> ! {
     let mut step = 0;
     let mut player = board
         .audio
-        .into_player(bus, RATE, Volume::from_half_db(STEPS_DB[step] * 2))
+        .player(bus, RATE, Volume::from_half_db(STEPS_DB[step] * 2))
         .await
         .unwrap();
     info!(
@@ -123,18 +108,24 @@ async fn main(_spawner: Spawner) -> ! {
 
     let mut playing = false;
     let mut osc = Sine::new(440.0, RATE.hz(), AMPLITUDE);
+    let mut block = [0i16; BLOCK];
     let silence = [0i16; BLOCK];
 
     loop {
         // Keep the stream fed (tone or silence) so the codec's BCLK-derived
         // clock never stops, and check the keyboard between blocks.
         let key = if playing {
-            match select(keyboard.next_event(), play_block(&mut player, &mut osc)).await {
+            match select(
+                keyboard.next_event(),
+                play_block(&mut player, &mut osc, &mut block),
+            )
+            .await
+            {
                 Either::First(ev) => Some(ev),
                 Either::Second(()) => None,
             }
         } else {
-            match select(keyboard.next_event(), player.write(&silence)).await {
+            match select(keyboard.next_event(), player.write_some(&silence)).await {
                 Either::First(ev) => Some(ev),
                 Either::Second(_) => None,
             }
@@ -159,7 +150,6 @@ async fn main(_spawner: Spawner) -> ! {
                 // One second, retuned every block with continuous phase.
                 let blocks = RATE.hz() as usize / (BLOCK / 2);
                 let mut sweep = Sine::new(200.0, RATE.hz(), AMPLITUDE);
-                let mut block = [0i16; BLOCK];
                 for i in 0..blocks {
                     sweep.set_frequency(200.0 + 1800.0 * i as f32 / blocks as f32, RATE.hz());
                     sweep.fill(&mut block, 2);

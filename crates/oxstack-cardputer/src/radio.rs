@@ -7,7 +7,8 @@
 //! once the app runs. The radio's buffers therefore don't compete with the
 //! framebuffer or audio streams.
 //!
-//! Enable `wifi` and/or `ble` on this crate, then use `esp_radio` directly
+//! Enable `wifi` and/or `ble` on this crate for the helpers in
+//! [`crate::net`] and [`crate::ble`], or use `esp_radio` directly
 //! (re-exported here). Running both at once (coexistence) needs more heap
 //! than the reclaimed region provides; add a second region with
 //! [`esp_alloc::heap_allocator!`] in the app.
@@ -23,10 +24,11 @@ pub const RECLAIMED_HEAP_BYTES: usize = 73_744;
 
 /// The radio peripherals.
 #[allow(missing_docs)]
-pub struct RadioResources {
-    pub wifi: WIFI<'static>,
-    pub bt: BT<'static>,
+pub struct RadioResources<'d> {
+    pub wifi: WIFI<'d>,
+    pub bt: BT<'d>,
 }
+reborrow_group!(RadioResources { wifi, bt });
 
 #[cfg(feature = "radio")]
 pub(crate) fn init_heap() {

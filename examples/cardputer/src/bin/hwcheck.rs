@@ -26,37 +26,11 @@ use embedded_graphics::text::{Baseline, Text};
 use embedded_hal_async::i2c::I2c as _;
 use esp_backtrace as _;
 use esp_println as _;
+use oxstack_cardputer::gfx::TextBuf;
 use oxstack_cardputer::pins::sys_i2c;
 use oxstack_cardputer::{self as bsp, display, i2c, imu};
 
 esp_bootloader_esp_idf::esp_app_desc!();
-
-/// Fixed-capacity line buffer for on-screen text.
-struct Line<const N: usize> {
-    buf: [u8; N],
-    len: usize,
-}
-
-impl<const N: usize> Line<N> {
-    const fn new() -> Self {
-        Self {
-            buf: [0; N],
-            len: 0,
-        }
-    }
-    fn as_str(&self) -> &str {
-        core::str::from_utf8(&self.buf[..self.len]).unwrap_or("")
-    }
-}
-
-impl<const N: usize> core::fmt::Write for Line<N> {
-    fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        let n = s.len().min(N - self.len);
-        self.buf[self.len..self.len + n].copy_from_slice(&s.as_bytes()[..n]);
-        self.len += n;
-        Ok(())
-    }
-}
 
 struct Report<'a> {
     fb: &'a mut display::Frame,
@@ -100,7 +74,7 @@ impl Report<'_> {
 
 #[esp_rtos::main]
 async fn main(_spawner: Spawner) -> ! {
-    let board = bsp::init(bsp::default_config());
+    let mut board = bsp::init(bsp::default_config());
     let _backlight = board.backlight.init();
     let bus = board.sys_i2c.into_bus();
     let mut lcd = board.display.init().await.unwrap();
@@ -180,7 +154,7 @@ async fn main(_spawner: Spawner) -> ! {
         for _ in 0..n {
             let s = imu.read().await.unwrap();
             let [x, y, z] = s.accel;
-            amag += libm_sqrt(x * x + y * y + z * z);
+            amag += sqrt(x * x + y * y + z * z);
             for g in s.gyro {
                 gmax = gmax.max(g.abs());
             }
@@ -207,10 +181,10 @@ async fn main(_spawner: Spawner) -> ! {
     info!("hwcheck done: {} failure(s)", failures);
     lcd.flush(fb).await.unwrap();
 
-    // Live readings on the bottom line.
+    // Live readings on the bottom line (board frame: +Z out of the screen).
     let mut ticker = Ticker::every(Duration::from_secs(1));
     loop {
-        let mut line = Line::<40>::new();
+        let mut line = TextBuf::<40>::new();
         let mv = battery.millivolts().await;
         if let Some(imu) = imu.as_mut()
             && let Ok(s) = imu.read().await
@@ -242,7 +216,7 @@ async fn main(_spawner: Spawner) -> ! {
 
 /// Square root without pulling in `libm`: Newton's method from a bit-hack
 /// seed, accurate to f32 precision after three steps for our 0–16 g range.
-fn libm_sqrt(v: f32) -> f32 {
+fn sqrt(v: f32) -> f32 {
     if v <= 0.0 {
         return 0.0;
     }

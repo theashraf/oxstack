@@ -1,5 +1,5 @@
-//! Wi-Fi station networking: connect, DHCP, DNS, UDP/TCP via `embassy-net`,
-//! plus network time. Requires the `wifi` feature.
+//! Wi-Fi: scanning, and station networking (connect, DHCP, DNS, UDP/TCP via
+//! `embassy-net`) plus network time. Requires the `wifi` feature.
 //!
 //! ```ignore
 //! let stack = net::start_station(spawner, board.radio.wifi, Credentials { ssid, password })?;
@@ -11,7 +11,18 @@
 //! [`start_station`] spawns two tasks: one keeps the link up (reconnecting
 //! every 5 s after a drop), the other runs the IP stack. Link state and
 //! signal strength are published in atomics ([`link`]), so any task can
-//! show them without owning the radio.
+//! show them without owning the radio. It takes the radio for the rest of
+//! the boot.
+//!
+//! Scanning is separate and repeatable: [`scanner`] borrows the radio and
+//! releases it when the [`Scanner`] is dropped.
+//!
+//! ```ignore
+//! let mut scanner = net::scanner(board.radio.wifi.reborrow())?;
+//! for ap in scanner.scan().await? {
+//!     info!("{} dBm ch {} {}", ap.signal_strength, ap.channel, ap.ssid);
+//! }
+//! ```
 
 use core::sync::atomic::{AtomicI8, AtomicU8, Ordering};
 
@@ -22,10 +33,13 @@ use embassy_net::udp::{PacketMetadata, UdpSocket};
 use embassy_net::{Runner, Stack, StackResources};
 use embassy_time::{Duration, Instant, Timer, with_timeout};
 use esp_hal::peripherals::WIFI;
+use esp_hal::time::Duration as HalDuration;
+pub use esp_radio::wifi::ap::AccessPointInfo;
+pub use esp_radio::wifi::scan::ScanConfig;
+use esp_radio::wifi::scan::ScanTypeConfig;
 use esp_radio::wifi::sta::StationConfig;
-use esp_radio::wifi::{
-    AuthenticationMethodConfig, Config, ControllerConfig, Interface, WifiController, WifiError,
-};
+pub use esp_radio::wifi::{AuthenticationMethod, WifiController};
+use esp_radio::wifi::{AuthenticationMethodConfig, Config, ControllerConfig, Interface, WifiError};
 use oxstack_net::sntp;
 pub use oxstack_net::sntp::ServerTime;
 pub use oxstack_net::time::DateTime;
@@ -47,7 +61,7 @@ pub struct Credentials<'a> {
     pub password: &'a str,
 }
 
-/// Errors from [`start_station`].
+/// Errors from [`start_station`] and [`scanner`].
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Error {
@@ -253,9 +267,27 @@ impl WallClock {
         }
     }
 
+    /// Microseconds since the Unix epoch.
+    pub fn unix_micros(&self) -> i64 {
+        self.unix_us_at_boot + Instant::now().as_micros() as i64
+    }
+
     /// Seconds since the Unix epoch.
     pub fn unix_seconds(&self) -> i64 {
-        (self.unix_us_at_boot + Instant::now().as_micros() as i64).div_euclid(1_000_000)
+        self.unix_micros().div_euclid(1_000_000)
+    }
+
+    /// Microseconds into the current second, 0–999 999.
+    pub fn subsec_micros(&self) -> u32 {
+        self.unix_micros().rem_euclid(1_000_000) as u32
+    }
+
+    /// The monotonic instant at which [`unix_seconds`](Self::unix_seconds)
+    /// next changes, so a clock face can redraw exactly on the second:
+    /// `Timer::at(clock.next_second()).await`.
+    pub fn next_second(&self) -> Instant {
+        let to_go = 1_000_000 - u64::from(self.subsec_micros());
+        Instant::now() + Duration::from_micros(to_go)
     }
 
     /// Calendar date and time at `offset_minutes` east of UTC.
@@ -269,4 +301,55 @@ pub async fn sync_clock(stack: Stack<'static>, server: &str) -> Result<WallClock
     Ok(WallClock::from_server_time(
         query_time(stack, server).await?,
     ))
+}
+
+/// A scan configuration that finds networks reliably: active probing with
+/// 30–120 ms per channel (ESP-IDF's maximum; `esp-radio`'s 10–20 ms default
+/// misses access points whose beacons come every ~100 ms), hidden networks
+/// included, at most 32 results.
+pub fn scan_config() -> ScanConfig {
+    ScanConfig::default()
+        .with_max(32)
+        .with_show_hidden(true)
+        .with_scan_type(ScanTypeConfig::Active {
+            min: HalDuration::from_millis(30),
+            max: HalDuration::from_millis(120),
+        })
+}
+
+/// A Wi-Fi scanner. Dropping it switches the radio off again.
+pub struct Scanner<'d> {
+    controller: WifiController<'d>,
+}
+
+/// Starts the radio for scanning. Takes about 1.5 s per [`Scanner::scan`].
+pub fn scanner(wifi: WIFI<'_>) -> Result<Scanner<'_>, Error> {
+    let controller = WifiController::new(wifi, ControllerConfig::default()).map_err(Error::Wifi)?;
+    Ok(Scanner { controller })
+}
+
+impl<'d> Scanner<'d> {
+    /// Scans with [`scan_config`]; results come strongest first.
+    pub async fn scan(&mut self) -> Result<alloc::vec::Vec<AccessPointInfo>, Error> {
+        self.scan_with(&scan_config()).await
+    }
+
+    /// Scans with a custom configuration; results come strongest first.
+    pub async fn scan_with(
+        &mut self,
+        config: &ScanConfig,
+    ) -> Result<alloc::vec::Vec<AccessPointInfo>, Error> {
+        let mut aps = self
+            .controller
+            .scan_async(config)
+            .await
+            .map_err(Error::Wifi)?;
+        aps.sort_unstable_by_key(|ap| core::cmp::Reverse(ap.signal_strength));
+        Ok(aps)
+    }
+
+    /// The underlying controller.
+    pub fn controller(&mut self) -> &mut WifiController<'d> {
+        &mut self.controller
+    }
 }

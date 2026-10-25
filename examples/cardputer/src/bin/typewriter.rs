@@ -91,7 +91,7 @@ impl Page {
 
 #[esp_rtos::main]
 async fn main(_spawner: Spawner) -> ! {
-    let board = bsp::init(bsp::default_config());
+    let mut board = bsp::init(bsp::default_config());
     let _backlight = board.backlight.init();
     let i2c = board.sys_i2c.into_bus();
     let mut lcd = board.display.init().await.unwrap();

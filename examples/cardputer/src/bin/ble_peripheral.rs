@@ -27,14 +27,13 @@ use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
 use embedded_graphics::text::{Baseline, Text};
 use esp_backtrace as _;
-use esp_hal::rmt::Rmt;
-use esp_hal::time::Rate;
 use esp_println as _;
 use oxstack_cardputer::battery::Battery;
 use oxstack_cardputer::ble::{self, trouble_host};
+use oxstack_cardputer::gfx::TextBuf;
 use oxstack_cardputer::input::Action;
 use oxstack_cardputer::keyboard::Keyboard;
-use oxstack_cardputer::led::{RMT_MHZ, RgbLed};
+use oxstack_cardputer::led::RgbLed;
 use oxstack_cardputer::{self as bsp, display};
 use trouble_host::prelude::*;
 
@@ -65,55 +64,30 @@ struct OxstackService {
 }
 
 struct Ui<'a> {
-    lcd: display::Display,
+    lcd: display::Display<'a>,
     fb: &'a mut display::Frame,
 }
 
 impl Ui<'_> {
     async fn line(&mut self, y: i32, args: core::fmt::Arguments<'_>, color: Rgb565) {
-        let mut l = Line {
-            buf: [b' '; 38],
-            len: 0,
-        };
+        let mut l = TextBuf::<38>::new();
         let _ = l.write_fmt(args);
+        l.pad(38); // overwrite whatever longer text was there
         let style = MonoTextStyleBuilder::new()
             .font(&FONT_6X10)
             .text_color(color)
             .background_color(Rgb565::BLACK)
             .build();
-        let text = core::str::from_utf8(&l.buf).unwrap_or("");
-        Text::with_baseline(text, Point::new(2, y), style, Baseline::Top)
+        Text::with_baseline(l.as_str(), Point::new(2, y), style, Baseline::Top)
             .draw(self.fb)
             .unwrap();
         self.lcd.flush(self.fb).await.unwrap();
     }
 }
 
-struct Line {
-    buf: [u8; 38],
-    len: usize,
-}
-
-impl core::fmt::Write for Line {
-    fn write_str(&mut self, s: &str) -> core::fmt::Result {
-        for c in s.chars() {
-            let b = if c.is_ascii() && !c.is_ascii_control() {
-                c as u8
-            } else {
-                b'?'
-            };
-            if self.len < self.buf.len() {
-                self.buf[self.len] = b;
-                self.len += 1;
-            }
-        }
-        Ok(())
-    }
-}
-
 #[esp_rtos::main]
 async fn main(_spawner: Spawner) -> ! {
-    let board = bsp::init(bsp::default_config());
+    let mut board = bsp::init(bsp::default_config());
     let _backlight = board.backlight.init(); // also powers the RGB LED
     let bus = board.sys_i2c.into_bus();
     let mut ui = Ui {
@@ -122,18 +96,13 @@ async fn main(_spawner: Spawner) -> ! {
     };
     let mut keyboard = board.keyboard.init(bus).await.unwrap();
     let mut battery = board.battery.init();
-    let rmt = Rmt::new(board.system.rmt, Rate::from_mhz(RMT_MHZ))
-        .unwrap()
-        .into_async();
-    let mut led = RgbLed::new(rmt.channel0, board.rgb_led).unwrap();
+    let (mut led, _ir) = board.rmt.init().unwrap();
     let _ = led.off().await;
 
     let address = ble::address();
     let controller = ble::controller(board.radio.bt).unwrap();
     let mut resources: HostResources<_, DefaultPacketPool, 1, 2> = HostResources::new();
-    let stack = trouble_host::new(controller, &mut resources)
-        .set_random_address(address)
-        .build();
+    let stack = ble::stack(controller, &mut resources);
     let mut runner = stack.runner();
     let mut peripheral = stack.peripheral();
     let server = Server::new_with_config(GapConfig::Peripheral(PeripheralConfig {
@@ -251,7 +220,7 @@ async fn advertise<'v, 's, C: Controller>(
 async fn gatt_events(
     server: &Server<'_>,
     conn: &GattConnection<'_, '_, DefaultPacketPool>,
-    led: &mut RgbLed,
+    led: &mut RgbLed<'_>,
 ) {
     let led_handle = server.oxstack.led.handle;
     loop {
@@ -284,8 +253,8 @@ async fn gatt_events(
 async fn app_task(
     server: &Server<'_>,
     conn: &GattConnection<'_, '_, DefaultPacketPool>,
-    keyboard: &mut Keyboard,
-    battery: &mut Battery,
+    keyboard: &mut Keyboard<'_>,
+    battery: &mut Battery<'_>,
     ui: &mut Ui<'_>,
 ) {
     let mut sent = 0u32;

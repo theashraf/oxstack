@@ -1,0 +1,7 @@
+[template]
+ignore = []
+
+[placeholders.radio]
+type = "bool"
+prompt = "Enable Wi-Fi and Bluetooth LE?"
+default = false

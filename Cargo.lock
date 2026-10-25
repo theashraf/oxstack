@@ -1870,7 +1870,7 @@ checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
 name = "oxstack-audio"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "defmt 1.2.0",
  "libm",
@@ -1878,7 +1878,7 @@ dependencies = [
 
 [[package]]
 name = "oxstack-cardputer"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bt-hci",
  "defmt 1.2.0",
@@ -1909,7 +1909,7 @@ dependencies = [
 
 [[package]]
 name = "oxstack-drivers"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "defmt 1.2.0",
  "embedded-hal 1.0.0",
@@ -1918,7 +1918,7 @@ dependencies = [
 
 [[package]]
 name = "oxstack-examples-cardputer"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "defmt 1.2.0",
  "embassy-executor",
@@ -1938,7 +1938,7 @@ dependencies = [
 
 [[package]]
 name = "oxstack-gfx"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "defmt 1.2.0",
  "embedded-graphics",
@@ -1947,21 +1947,21 @@ dependencies = [
 
 [[package]]
 name = "oxstack-input"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "defmt 1.2.0",
 ]
 
 [[package]]
 name = "oxstack-ir"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "defmt 1.2.0",
 ]
 
 [[package]]
 name = "oxstack-net"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "defmt 1.2.0",
 ]
@@ -2718,7 +2718,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "xtensa-lx"

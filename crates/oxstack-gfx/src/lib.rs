@@ -8,6 +8,9 @@
 //!
 //! It implements `embedded-graphics`' `DrawTarget`, so every font, shape
 //! and image crate in that ecosystem works unchanged.
+//!
+//! [`TextBuf`] is the small formatting buffer every status line needs:
+//! `write!` into it, draw [`as_str`](TextBuf::as_str), nothing allocates.
 #![no_std]
 #![warn(missing_docs)]
 
@@ -16,6 +19,8 @@
 struct ReadmeDoctests;
 
 mod framebuffer;
+mod text;
 
 pub use embedded_graphics_core::pixelcolor::Rgb565;
 pub use framebuffer::{DirtyRows, Framebuffer};
+pub use text::TextBuf;

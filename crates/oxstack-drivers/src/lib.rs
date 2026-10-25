@@ -18,6 +18,7 @@
 #[doc = include_str!("../README.md")]
 struct ReadmeDoctests;
 
+pub mod axes;
 #[cfg(feature = "bmi270")]
 pub mod bmi270;
 #[cfg(feature = "es8311")]

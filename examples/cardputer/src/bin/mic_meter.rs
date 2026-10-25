@@ -79,7 +79,7 @@ fn libm_sqrt(v: f64) -> f64 {
 
 #[esp_rtos::main]
 async fn main(_spawner: Spawner) -> ! {
-    let board = bsp::init(bsp::default_config());
+    let mut board = bsp::init(bsp::default_config());
     let _backlight = board.backlight.init();
     let bus = board.sys_i2c.into_bus();
     let mut lcd = board.display.init().await.unwrap();
@@ -90,11 +90,7 @@ async fn main(_spawner: Spawner) -> ! {
     label(fb, "R", 70, Rgb565::WHITE);
     lcd.flush(fb).await.unwrap();
 
-    let mut mic = board
-        .audio
-        .into_recorder(bus, RATE, MicGain::DB0)
-        .await
-        .unwrap();
+    let mut mic = board.audio.recorder(bus, RATE, MicGain::DB0).await.unwrap();
     info!(
         "recorder started at {} Hz, PGA 0 dB (+24 dB digital scale)",
         RATE.hz()

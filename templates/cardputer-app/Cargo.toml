@@ -1,0 +1,42 @@
+[package]
+name         = "{{project-name}}"
+version      = "0.1.0"
+edition      = "2024"
+rust-version = "1.95"
+publish      = false
+
+[[bin]]
+name  = "{{project-name}}"
+path  = "src/main.rs"
+test  = false
+bench = false
+
+[dependencies]
+# The board crate re-exports esp-hal, esp-rtos, embassy-* and
+# esp-bootloader-esp-idf at the versions it pins. The ones below are the
+# extras every firmware needs itself: the panic handler, the defmt
+# transport, and the two crates `#[esp_rtos::main]` expands to.
+{% if radio %}oxstack-cardputer = { version = "0.2", features = ["defmt", "wifi", "ble"] }{% else %}oxstack-cardputer = { version = "0.2", features = ["defmt"] }{% endif %}
+
+esp-hal                = { version = "=1.2.2", features = ["esp32s3", "unstable", "defmt"] }
+esp-rtos               = { version = "0.4.0", features = ["embassy", "esp32s3", "defmt"] }
+esp-bootloader-esp-idf = { version = "0.6.0", features = ["esp32s3", "defmt"] }
+esp-backtrace          = { version = "0.20.0", features = ["esp32s3", "panic-handler", "defmt"] }
+# USB-Serial-JTAG only: UART0's default pins are board signals on the Cardputer.
+esp-println            = { version = "0.18.0", default-features = false, features = ["esp32s3", "critical-section", "defmt-espflash", "jtag-serial"] }
+embassy-executor       = { version = "0.10.0", features = ["defmt"] }
+embassy-time           = { version = "0.5.0", features = ["defmt"] }
+embedded-graphics      = "0.8.2"
+defmt                  = "1.0.1"
+{% if radio %}trouble-host           = { version = "0.7.0", features = ["scan", "defmt"] }{% endif %}
+
+[profile.dev]
+# Unoptimised Xtensa code is both huge and too slow to drive the display.
+opt-level = "s"
+
+[profile.release]
+codegen-units = 1
+lto           = "fat"
+opt-level     = "s"
+# Debug info lives in the ELF only; it never reaches the flash image.
+debug         = 2

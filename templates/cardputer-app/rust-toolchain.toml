@@ -1,0 +1,3 @@
+[toolchain]
+# The Xtensa fork of rustc, installed by `espup install`.
+channel = "esp"

@@ -1,0 +1,3 @@
+# `cargo generate --git https://github.com/theashraf/oxstack` offers these.
+[template]
+sub_templates = ["templates/cardputer-app"]

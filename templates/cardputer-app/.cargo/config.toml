@@ -1,0 +1,13 @@
+[build]
+target = "xtensa-esp32s3-none-elf"
+
+[target.xtensa-esp32s3-none-elf]
+# `cargo run --release` flashes and opens the defmt log monitor.
+runner    = "espflash flash --monitor --chip esp32s3 --log-format defmt"
+rustflags = ["-C", "link-arg=-nostartfiles"]
+
+[unstable]
+build-std = ["core", "alloc"]
+
+[env]
+DEFMT_LOG = "info"

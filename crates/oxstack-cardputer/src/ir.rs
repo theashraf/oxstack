@@ -1,10 +1,11 @@
 //! IR transmitter on GPIO44 (LED driven directly through 22 Ω), using an
-//! RMT channel with hardware 38 kHz carrier modulation.
+//! RMT channel with hardware 38 kHz carrier modulation. Get it from
+//! [`crate::rmt::RmtResources::init`].
 //!
 //! Protocol encoding is in [`oxstack_ir`] (re-exported as [`protocols`]):
 //!
 //! ```ignore
-//! let mut ir = IrTx::new(rmt.channel1, board.ir_tx)?;
+//! let (_led, mut ir) = board.rmt.init()?;
 //! ir.send_nec(0x04, 0x08).await?;
 //! ```
 //!
@@ -36,16 +37,16 @@ pub enum IrError {
 }
 
 /// The IR transmitter.
-pub struct IrTx {
-    ch: Channel<'static, Async, Tx>,
+pub struct IrTx<'d> {
+    ch: Channel<'d, Async, Tx>,
 }
 
-impl IrTx {
+impl<'d> IrTx<'d> {
     /// Configures an RMT TX channel (1 µs ticks, 38 kHz carrier, idle off).
-    /// The `Rmt` must run at 80 MHz.
+    /// The `Rmt` must run at [`RMT_MHZ`].
     pub fn new(
-        channel: impl TxChannelCreator<'static, Async>,
-        pin: GPIO44<'static>,
+        channel: impl TxChannelCreator<'d, Async>,
+        pin: GPIO44<'d>,
     ) -> Result<Self, ConfigError> {
         let carrier_ticks = (RMT_MHZ * 1_000_000 / nec::CARRIER_HZ) as u16;
         let config = TxChannelConfig::default()

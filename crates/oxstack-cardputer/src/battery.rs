@@ -14,30 +14,31 @@ const DIVIDER_RATIO: u32 = 2;
 /// Samples averaged per reading.
 const SAMPLES: u32 = 16;
 
-type Cal = AdcCalCurve<ADC1<'static>>;
+type Cal<'d> = AdcCalCurve<ADC1<'d>>;
 
 /// ADC1 and the sense pin.
 #[allow(missing_docs)]
-pub struct BatteryResources {
-    pub adc: ADC1<'static>,
-    pub pin: GPIO10<'static>,
+pub struct BatteryResources<'d> {
+    pub adc: ADC1<'d>,
+    pub pin: GPIO10<'d>,
 }
+reborrow_group!(BatteryResources { adc, pin });
 
-impl BatteryResources {
+impl<'d> BatteryResources<'d> {
     /// Configures ADC1 with eFuse curve calibration on the sense pin.
-    pub fn init(self) -> Battery {
+    pub fn init(&mut self) -> Battery<'_> {
         let mut config = AdcConfig::new();
         // 11 dB covers ~0–3.1 V at the pin, i.e. a 0–6.2 V battery.
-        let pin = config.enable_pin_with_cal::<_, Cal>(self.pin, Attenuation::_11dB);
-        let adc = Adc::new(self.adc, config).into_async();
+        let pin = config.enable_pin_with_cal(self.pin.reborrow(), Attenuation::_11dB);
+        let adc = Adc::new(self.adc.reborrow(), config).into_async();
         Battery { adc, pin }
     }
 }
 
 /// Battery voltage monitor.
-pub struct Battery {
-    adc: Adc<'static, ADC1<'static>, Async>,
-    pin: AdcPin<GPIO10<'static>, ADC1<'static>, Cal>,
+pub struct Battery<'d> {
+    adc: Adc<'d, ADC1<'d>, Async>,
+    pin: AdcPin<GPIO10<'d>, ADC1<'d>, Cal<'d>>,
 }
 
 /// Rough state of charge for a single Li-ion cell from its voltage, in %.
@@ -82,7 +83,7 @@ const _: () = {
     assert!(estimate_percent(4400) == 100);
 };
 
-impl Battery {
+impl Battery<'_> {
     /// Battery voltage in millivolts, averaged over 16 calibrated samples.
     pub async fn millivolts(&mut self) -> u16 {
         let mut sum = 0u32;
